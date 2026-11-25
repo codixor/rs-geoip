@@ -1,0 +1,10 @@
+/target/
+/.worktrees/
+/data/
+/dist/
+*.bin
+*.lz4
+*.mmdb
+*.csv
+*.csv.gz
+ip-city-*.json
