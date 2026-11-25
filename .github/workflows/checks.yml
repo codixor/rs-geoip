@@ -1,0 +1,38 @@
+name: Rust checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        features: [country, city, "country,build", "city,build", builtin, native-tools]
+    env:
+      FEATURES: ${{ matrix.features }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked --all-targets --no-default-features --features "$FEATURES" -- -D warnings
+      - run: cargo test --locked --no-default-features --features "$FEATURES"
+      - name: Check source-only repository and package contents
+        if: matrix.features == 'country'
+        shell: bash
+        run: |
+          set -eu
+          git ls-files > "$RUNNER_TEMP/geoip-tracked"
+          cargo package --locked --list > "$RUNNER_TEMP/geoip-package"
+          # Cargo generates this metadata file when packaging a Git checkout.
+          sed -i '/^\.cargo_vcs_info\.json$/d' "$RUNNER_TEMP/geoip-package"
+          if grep -Ei '\.(bin|lz4|mmdb|csv(\.gz)?|tsv(\.gz)?|json)$' "$RUNNER_TEMP/geoip-tracked" "$RUNNER_TEMP/geoip-package"; then
+            exit 1
+          fi
