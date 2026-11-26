@@ -24,10 +24,11 @@ city = [
     "dep:thiserror", "dep:zerocopy",
 ]
 builtin = ["city"]
-build = ["dep:csv"]
+build = ["country", "dep:csv"]
 native-tools = ["city", "build", "dep:criterion", "dep:maxminddb", "dep:reqwest", "dep:tokio"]
 
 [dependencies]
+csv = { version = "1", optional = true }
 bytemuck = { version = "1.25.0", default-features = false, features = ["derive"], optional = true }
 indexmap = { version = "2.14.0", optional = true }
 lru = { version = "0.18.0", optional = true }
@@ -41,7 +42,6 @@ zerocopy = { version = "0.8.48", default-features = false, features = ["derive"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support", "html_reports", "plotters"], optional = true }
-csv = { version = "1", optional = true }
 flate2 = { version = "1.1.9", optional = true }
 maxminddb = { version = "0.28.1", optional = true }
 reqwest = { version = "0.13.3", default-features = false, features = ["rustls"], optional = true }
@@ -51,6 +51,11 @@ tokio = { version = "1.52.1", default-features = false, features = ["rt-multi-th
 [[test]]
 name = "local_ip_fallback"
 required-features = ["city"]
+
+[[bin]]
+name = "rs-geo-country-build"
+path = "src/bin/rs-geo-country-build.rs"
+required-features = ["build"]
 
 [[bench]]
 name = "ip_city_lookup"
