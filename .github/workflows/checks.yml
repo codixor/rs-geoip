@@ -22,8 +22,7 @@ jobs:
         with:
           persist-credentials: false
       - run: cargo fmt --all --check
-      - run: cargo clippy --locked --all-targets --no-default-features --features "$FEATURES" -- -D warnings
-      - run: cargo test --locked --no-default-features --features "$FEATURES"
+      - run: bash scripts/feature-matrix.sh "$FEATURES"
       - name: Check source-only repository and package contents
         if: matrix.features == 'country'
         shell: bash
