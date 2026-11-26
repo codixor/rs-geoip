@@ -35,3 +35,10 @@ jobs:
           if grep -Ei '\.(bin|lz4|mmdb|csv(\.gz)?|tsv(\.gz)?|json)$' "$RUNNER_TEMP/geoip-tracked" "$RUNNER_TEMP/geoip-package"; then
             exit 1
           fi
+
+      - name: Test database updates and failed downloads
+        if: matrix.features == 'country,build'
+        shell: bash
+        run: |
+          cargo build --locked --no-default-features --features build --bin rs-geo-country-build
+          COUNTRY_DB_BUILDER="$PWD/target/debug/rs-geo-country-build" sh tests/update-country-db.sh
