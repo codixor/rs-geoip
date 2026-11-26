@@ -77,5 +77,5 @@ bench-driven packed runtime formats.
 - [x] Add explicit duplicate-city ambiguity policy tests
 - [ ] Decide whether to freeze the packed file formats as `v1` and document them
   as stable
-- [ ] Decide whether IPv6 import/runtime support belongs in the first public
-  release or a follow-up batch
+- [ ] Evaluate IPv6 import and lookup for the optional city packs. The country
+  reader and builder already support both IPv4 and IPv6.
