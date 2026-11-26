@@ -248,13 +248,17 @@ fn builtin_availability_matches_local_inputs() {
     let paged = cfg!(feature = "builtin") && root.join("ip-city-packed-paged.bin").is_file();
     assert_eq!(rs_geoip::builtin_flat_packed_bytes().is_some(), flat);
     assert_eq!(rs_geoip::builtin_paged_packed_bytes().is_some(), paged);
-    if !flat {
+    if flat {
+        GeoIpResolver::from_builtin_flat_packed().expect("open embedded flat city pack");
+    } else {
         assert!(matches!(
             GeoIpResolver::from_builtin_flat_packed(),
             Err(GeoIpError::BuiltinPackUnavailable("flat"))
         ));
     }
-    if !paged {
+    if paged {
+        GeoIpResolver::from_builtin_paged_packed().expect("open embedded paged city pack");
+    } else {
         assert!(matches!(
             GeoIpResolver::from_builtin_paged_packed(),
             Err(GeoIpError::BuiltinPackUnavailable("paged"))
