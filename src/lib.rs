@@ -1,5 +1,8 @@
 //! Offline IP geolocation using local databases.
 
+#[cfg(feature = "country")]
+pub mod country;
+
 #[cfg(feature = "city")]
 mod builtin;
 #[cfg(feature = "city")]
