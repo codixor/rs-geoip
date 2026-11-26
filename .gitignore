@@ -8,3 +8,6 @@
 *.csv
 *.csv.gz
 ip-city-*.json
+*.tsv
+*.tsv.gz
+*.json

@@ -1,0 +1,117 @@
+[package]
+name = "rs-geoip"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.100"
+description = "Offline IP geolocation with local packed databases"
+readme = "README.md"
+repository = "https://github.com/codixor/rs-geoip"
+license = "MIT OR Apache-2.0"
+keywords = ["geo", "geoip", "ip", "location", "latitude"]
+categories = ["database", "network-programming"]
+include = [
+    "/src/**/*.rs", "/tests/**/*.rs", "/benches/*.rs", "/examples/*.rs",
+    "/scripts/*.sh", "/build.rs", "/Cargo.toml", "/Cargo.lock", "/README.md",
+    "/LICENSE-*", "/CHANGELOG.md", "/PLAN.md",
+]
+
+[features]
+default = ["country"]
+country = []
+city = [
+    "dep:bytemuck", "dep:flate2", "dep:indexmap", "dep:lru", "dep:lz4_flex",
+    "dep:parking_lot", "dep:rkyv", "dep:rs-mmap", "dep:serde", "dep:serde_json",
+    "dep:thiserror", "dep:zerocopy",
+]
+builtin = ["city"]
+build = ["dep:csv"]
+native-tools = ["city", "build", "dep:criterion", "dep:maxminddb", "dep:reqwest", "dep:tokio"]
+
+[dependencies]
+bytemuck = { version = "1.25.0", default-features = false, features = ["derive"], optional = true }
+indexmap = { version = "2.14.0", optional = true }
+lru = { version = "0.18.0", optional = true }
+lz4_flex = { version = "0.13.0", optional = true }
+parking_lot = { version = "0.12.5", optional = true }
+rkyv = { version = "0.8.16", optional = true }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "std"], optional = true }
+serde_json = { version = "1.0.149", default-features = false, features = ["std"], optional = true }
+thiserror = { version = "2.0.18", optional = true }
+zerocopy = { version = "0.8.48", default-features = false, features = ["derive"], optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support", "html_reports", "plotters"], optional = true }
+csv = { version = "1", optional = true }
+flate2 = { version = "1.1.9", optional = true }
+maxminddb = { version = "0.28.1", optional = true }
+reqwest = { version = "0.13.3", default-features = false, features = ["rustls"], optional = true }
+rs-mmap = { version = "0.4.0", default-features = false, features = ["zerocopy-views"], optional = true }
+tokio = { version = "1.52.1", default-features = false, features = ["rt-multi-thread"], optional = true }
+
+[[test]]
+name = "local_ip_fallback"
+required-features = ["city"]
+
+[[bench]]
+name = "ip_city_lookup"
+harness = false
+required-features = ["native-tools"]
+
+[[bin]]
+name = "build_ip_city_json"
+path = "src/bin/build_ip_city_json.rs"
+required-features = ["city", "build"]
+
+[[bin]]
+name = "build_ip_city_pack"
+path = "src/bin/build_ip_city_pack.rs"
+required-features = ["city", "build"]
+
+[[bin]]
+name = "build_ip_city_pack_paged"
+path = "src/bin/build_ip_city_pack_paged.rs"
+required-features = ["city", "build"]
+
+[[bin]]
+name = "lookup_ip_city_pack"
+path = "src/bin/lookup_ip_city_pack.rs"
+required-features = ["city", "build"]
+
+[[bin]]
+name = "lookup_ip_city_pack_paged"
+path = "src/bin/lookup_ip_city_pack_paged.rs"
+required-features = ["city", "build"]
+
+[[example]]
+name = "local_ip_lookup"
+path = "examples/local_ip_lookup.rs"
+required-features = ["city"]
+
+[lints.rust]
+unsafe_code = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(has_flat_city_pack)", "cfg(has_paged_city_pack)"] }
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+debug = false
+strip = "symbols"
+panic = "unwind"
+incremental = false
+overflow-checks = false
+
+[profile.min-size]
+inherits = "release"
+opt-level = "z"
+panic = "abort"
+
+[profile.release-debuginfo]
+inherits = "release"
+debug = "line-tables-only"
+strip = "none"
+split-debuginfo = "packed"
