@@ -1,36 +1,73 @@
 # rs-geoip
 
-Offline IP geolocation for Rust. The `city` feature looks up IPv4 addresses in local city packs and returns an approximate position, city name, and country code. The repository and crate ship no databases.
+Look up the country of an IPv4 or IPv6 address offline. The default reader uses only the Rust standard library. It loads and validates the table once, then searches immutable arrays without allocating or locking. Missing ranges return `None`. An IPv4-mapped IPv6 address uses the IPv4 table.
 
-## City lookup
+## Build a country database
 
-Add `rs-geoip = { version = "0.2", features = ["city"] }` to your dependencies. Use `GeoIpResolver` to open a local file once and reuse it across lookups.
+Install the builder with Rust 1.100 or later.
+
+```sh
+cargo install rs-geoip --version 0.2.0 --locked --features build --bin rs-geo-country-build
+```
+
+Download the numeric IPv4 and IPv6 CSVs and build the database locally. The default source prioritizes the end user's country. Its maintainers publish daily updates. [Dataset and licence](https://github.com/sapics/ip-location-db#country)
+
+```sh
+base=https://github.com/sapics/ip-location-db/releases/download/latest
+curl -fL "$base/user-country-ipv4-num.csv" -o ipv4.csv
+curl -fL "$base/user-country-ipv6-num.csv" -o ipv6.csv
+rs-geo-country-build --ipv4 ipv4.csv --ipv6 ipv6.csv \
+  --label "user-country PDDL-1.0" --out country.bin
+rs-geo-country-build check country.bin
+```
+
+For repeated updates, the repository includes a script that downloads both inputs, prints their SHA-256 digests and the output digest, and checks the new database before installing it. The updater expects records in both feeds. For an intentionally IPv4-only table, pass an empty IPv6 CSV to the builder directly. [Update script](https://github.com/codixor/rs-geoip/blob/main/scripts/update-country-db.sh)
+
+```sh
+bash scripts/update-country-db.sh \
+  "$base/user-country-ipv4-num.csv" "$base/user-country-ipv6-num.csv" country.bin
+```
+
+## Look up an address
+
+```toml
+[dependencies]
+rs-geoip = "0.2"
+```
 
 ```rust
-use rs_geoip::{GeoIpError, GeoIpResolver};
-use std::{net::Ipv4Addr, path::Path};
+use rs_geoip::country::CountryDb;
+use std::net::IpAddr;
 
-fn lookup(path: &Path, ip: Ipv4Addr) -> Result<(), GeoIpError> {
-    let db = GeoIpResolver::from_flat_packed_file(path)?;
-    if let Some(fix) = db.lookup_ipv4(ip)? {
-        println!("{:?} {:?}", fix.city_name, fix.point.as_tuple());
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let db = CountryDb::from_file("country.bin")?;
+    let ip: IpAddr = "1.1.1.1".parse()?;
+    if let Some(country) = db.lookup(ip) {
+        println!("{}", country.as_str());
     }
     Ok(())
 }
 ```
 
-Flat LZ4 packs decompress when opened. Paged packs load city blocks on demand. Use `from_paged_packed_file` for a paged file, or the byte-based constructors for an in-memory pack. With `builtin`, building from a local checkout embeds any `ip-city-packed.lz4` or `ip-city-packed-paged.bin` in the crate root. A missing pack returns `GeoIpError::BuiltinPackUnavailable` when its resolver is requested.
+`CountryDb::from_bytes` also accepts a database loaded by your application. `db.info()` reports its label, build time and range counts. Load a replacement to pick up new data. Country estimates can be inaccurate, particularly on VPNs and mobile networks.
 
-## Building local city packs
+## City lookup and migration
 
-Supply a local city-range CSV (optionally gzip-compressed) and a tab-separated city reference file. City data derived from GeoLite2 is subject to its source terms. Keep downloaded and generated files outside version control.
+If you used the former `rs-geo-ip` workspace crate, change the dependency to `rs-geoip`, the Rust import to `rs_geoip`, and enable `city`.
 
-```sh
-cargo run --features city,build --bin build_ip_city_json -- \
-  --ip-city-csv city-ranges.csv.gz --cities-tsv cities.tsv --output-json ip-city-merged.json
-bash scripts/build-ip-city-artifacts.sh
+```toml
+[dependencies]
+rs-geoip = { version = "0.2", default-features = false, features = ["city"] }
 ```
 
-The script builds the flat and paged outputs from the merged JSON. The existing `native-tools` feature also supports importing a URL explicitly passed to `--ip-city-csv` and compiling the optional benchmark. Tests use small synthetic fixtures. The benchmark expects local MMDB, flat, and paged files.
+`GeoIpResolver::from_flat_packed_file` opens a compressed flat pack. `GeoIpResolver::from_paged_packed_file` opens a paged pack and decodes city blocks on demand. These packs cover IPv4. Supply packs you built locally. The optional `builtin` feature can embed `ip-city-packed.lz4` and `ip-city-packed-paged.bin` when present in the crate's source directory at build time. A missing pack yields `GeoIpError::BuiltinPackUnavailable` when its resolver is requested.
 
-See the [city format notes](PLAN.md) and [lookup example](examples/local_ip_lookup.rs).
+| Feature | Enables |
+| --- | --- |
+| `country` (default) | IPv4 and IPv6 country reader |
+| `city` | Flat and paged city lookups, plus the native file APIs |
+| `builtin` | City lookup with optional local packs embedded at compile time |
+| `build` | Country builder with `country`, local city tools with `city` |
+| `native-tools` | City tools with HTTP input support and the city benchmark |
+
+The crate contains source code only. The code is available under MIT or Apache-2.0. Country and city datasets have their own terms. [Data licences](https://github.com/codixor/rs-geoip/blob/main/LICENSE-DATA.md)

@@ -42,3 +42,20 @@ jobs:
         run: |
           cargo build --locked --no-default-features --features build --bin rs-geo-country-build
           COUNTRY_DB_BUILDER="$PWD/target/debug/rs-geo-country-build" sh tests/update-country-db.sh
+      - name: Check the release archive and dependency-free reader
+        if: matrix.features == 'country'
+        shell: bash
+        run: |
+          set -eu
+          test "$(cargo tree --locked --no-default-features --features country --prefix none | wc -l)" -eq 1
+          cargo package --locked
+          python3 scripts/check-package.py target/package/rs-geoip-*.crate
+      - name: Embed and open locally generated city packs
+        if: matrix.features == 'city,build'
+        shell: bash
+        run: |
+          set -eu
+          input="$RUNNER_TEMP/synthetic-city.json"
+          printf '[\n%s\n]\n' '{"ip_range_start":"192.0.2.0","ip_range_end":"192.0.2.255","city_name":"Example","country_code":"ZZ","latitude":1.0,"longitude":2.0}' > "$input"
+          bash scripts/build-ip-city-artifacts.sh "$input"
+          cargo test --locked --features builtin --test local_ip_fallback builtin_availability_matches_local_inputs
